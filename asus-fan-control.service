@@ -1,0 +1,12 @@
+[Unit]
+Description=ASUS ROG G531GT Fan Control
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/asus-fan-control.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

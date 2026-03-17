@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Set ASUS ROG G531GT keyboard backlight via direct HID write + sysfs.
+
+Usage: asus-kbd-backlight [LEVEL] [--mode MODE] [--color RRGGBB] [--speed SPEED]
+  LEVEL: 0-3 (0=off, 3=max, default=3)
+  MODE:  0=static 1=breathe 2=rainbow-cycle 3=rainbow-wave 4=stars
+         5=rain 6=highlight 7=laser 8=ripple 10=pulse 11=comet 12=flash
+  COLOR: hex like ffffff or ff0000 (default: ffffff)
+  SPEED: low|med|high (default: med, for animated effects)
+"""
+
+import os
+import sys
+import argparse
+
+HIDRAW = '/dev/hidraw3'
+SYSFS_BRIGHTNESS = '/sys/class/leds/asus::kbd_backlight/brightness'
+
+LED_SET   = bytes([0x5D, 0xB5] + [0] * 15)
+LED_APPLY = bytes([0x5D, 0xB4] + [0] * 15)
+
+SPEEDS = {'low': 0xe1, 'med': 0xeb, 'high': 0xf5}
+
+
+def aura_packet(mode=0, r=255, g=255, b=255, speed=0xeb, direction=0):
+    pkt = bytearray(17)
+    pkt[0] = 0x5D
+    pkt[1] = 0xB3
+    pkt[2] = 0x00
+    pkt[3] = mode
+    pkt[4] = r
+    pkt[5] = g
+    pkt[6] = b
+    pkt[7] = speed
+    pkt[8] = direction
+    return bytes(pkt)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='ASUS ROG keyboard backlight')
+    parser.add_argument('level', type=int, nargs='?', default=3,
+                        help='Brightness 0-3 (default: 3)')
+    parser.add_argument('--mode', default='0',
+                        help='Effect mode number (default: 0 = static)')
+    parser.add_argument('--color', default='ffffff',
+                        help='Hex color rrggbb (default: ffffff)')
+    parser.add_argument('--speed', default='med', choices=['low', 'med', 'high'],
+                        help='Animation speed (default: med)')
+    args = parser.parse_args()
+
+    level = max(0, min(3, args.level))
+
+    try:
+        mode = int(args.mode)
+    except ValueError:
+        mode = 0
+
+    hex_color = args.color.lstrip('#').ljust(6, '0')
+    try:
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+    except (ValueError, IndexError):
+        r, g, b = 255, 255, 255
+
+    speed = SPEEDS.get(args.speed, 0xeb)
+
+    # Use unbuffered os.write — each write must be a separate HID report
+    try:
+        fd = os.open(HIDRAW, os.O_WRONLY)
+        os.write(fd, aura_packet(mode, r, g, b, speed))
+        os.write(fd, LED_SET)
+        os.write(fd, LED_APPLY)
+        os.close(fd)
+    except OSError as e:
+        print(f'hidraw write failed: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        with open(SYSFS_BRIGHTNESS, 'w') as f:
+            f.write(str(level))
+    except OSError as e:
+        print(f'brightness write failed: {e}', file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
