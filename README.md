@@ -21,17 +21,16 @@ Fan control, keyboard backlight, and thermal management for the **ASUS ROG Strix
 ## Install
 
 ```bash
-# Copy scripts
-sudo cp asus-fan-control.sh asus-kbd-backlight /usr/local/bin/
-sudo chmod +x /usr/local/bin/asus-fan-control.sh /usr/local/bin/asus-kbd-backlight
+git clone https://github.com/Ganakas/asus-rog-g531gt-linux-control.git
+cd asus-rog-g531gt-linux-control
+bash install.sh
+```
 
-# Enable service
-sudo cp asus-fan-control.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now asus-fan-control
+Or download the assets from the [latest release](https://github.com/Ganakas/asus-rog-g531gt-linux-control/releases/latest), extract and run `bash install.sh`.
 
-# Run the app
-python3 fan-control.py
+To uninstall:
+```bash
+bash uninstall.sh
 ```
 
 ## Requirements
